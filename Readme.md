@@ -10,13 +10,167 @@ O sistema capta amostras de áudio através de um microfone conectado ao ADC (Co
 
 ## Repositório Base
 
-Este código foi inspirado e adaptado a partir do repositório de estudos [BitDogLab-C](https://github.com/BitDogLab/BitDogLab-C).
+Este código foi inspirado e adaptado a partir do repositório de estudos [BitDogLab-C](https://github.com/BitDogLab/BitDogLab-C/tree/main/microphone_dma).
+
+---
+
+## Características do Sistema
+
+- Microfone e ADC
+- Offset do Microfone: 1,65V (centro da faixa do ADC)
+- Amplitude Máxima: 1,65V de deslocamento (0V a 3,3V range total)
+- ADC: 12 bits de resolução (0-4095)
+- Resolução Mínima: 805.86 μV (3.3V/4096)
+
+---
+
+## Implementação
+### Estrutura de Arquivos
+
+- **`microphone_dma.c`** - Arquivo principal
+- **`neopixel.c`** - Controle da matriz de LEDs
+- **`ws2818b.pio`** - Programa PIO para comunicação com LEDs
+- **`CMakeLists.txt`** - Configuração de build
+
+### Configurações Principais
+  ```bash
+  cCopy// Configurações do ADC e Microfone
+  #define MIC_CHANNEL 2
+  #define MIC_PIN (26 + MIC_CHANNEL)
+  #define ADC_CLOCK_DIV 96.f
+  #define SAMPLES 200
+  
+  // Configurações da Matriz de LEDs
+  #define LED_PIN 7
+  #define LED_COUNT 25
+  Funções Principais
+```
+
+### Amostragem do Microfone
+  ```bash
+  cCopyvoid sample_mic() {
+      adc_fifo_drain();
+      adc_run(false);
+      
+      dma_channel_configure(dma_channel, &dma_cfg,
+          adc_buffer,
+          &(adc_hw->fifo),
+          SAMPLES,
+          true
+      );
+      
+      adc_run(true);
+      dma_channel_wait_for_finish_blocking(dma_channel);
+      adc_run(false);
+  }
+```
+
+### Cálculo da Potência do Sinal
+  ```bash
+  cCopyfloat mic_power() {
+      float avg = 0.f;
+      for (uint i = 0; i < SAMPLES; ++i)
+          avg += adc_buffer[i] * adc_buffer[i];
+      avg /= SAMPLES;
+      return sqrt(avg);
+  }
+```
+
+### Determinação da Intensidade
+  ```bash
+  cCopyuint8_t get_intensity(float v) {
+      if (v < 0.2f) return 0;  // Som muito baixo
+      if (v < 0.6f) return 1;  // Baixa intensidade
+      if (v < 1.2f) return 2;  // Média intensidade
+      if (v < 2.0f) return 3;  // Alta intensidade
+      return 4;                // Muito alto
+  }
+```
 
 ---
 
 ## Mudanças Realizadas
 
 ### 1. **Exibição dos LEDs**
+  ```bash
+  // A depender da intensidade do som, acende LEDs específicos.
+    switch (intensity) {
+      case 0: break; // Se o som for muito baixo, não acende nada.
+      case 1: // Acende a linha de baixo - verde
+      npSetLED(0, 0, 80, 0); 
+      npSetLED(1, 0, 80, 0);
+      npSetLED(2, 0, 80, 0);
+      npSetLED(3, 0, 80, 0);
+      npSetLED(4, 0, 80, 0);
+        break;
+      case 2: // Acende a linha de baixo - verde
+      npSetLED(0, 0, 80, 0); 
+      npSetLED(1, 0, 80, 0);
+      npSetLED(2, 0, 80, 0);
+      npSetLED(3, 0, 80, 0);
+      npSetLED(4, 0, 80, 0);
+
+      // Segundo nivel - esverdeado
+      npSetLED(6, 80, 52, 0);
+      npSetLED(8, 80, 52, 0);
+      npSetLED(9, 80, 52, 0);
+        
+        break;
+      case 3: // Acende a linha de baixo - verde
+      npSetLED(0, 0, 80, 0); 
+      npSetLED(1, 0, 80, 0);
+      npSetLED(2, 0, 80, 0);
+      npSetLED(3, 0, 80, 0);
+      npSetLED(4, 0, 80, 0);
+
+      // Segundo nivel - esverdeado
+      npSetLED(6, 80, 52, 0);
+      npSetLED(8, 80, 52, 0);
+      npSetLED(9, 80, 52, 0);
+      
+
+      // Terceiro nivel - amarelo
+      npSetLED(5, 80, 80, 0);
+      npSetLED(7, 80, 80, 0);
+      npSetLED(11, 80, 80, 0); //testando posicao
+      npSetLED(12, 80, 80, 0);
+
+        break;
+      case 4:// Acende a linha de baixo - verde
+        npSetLED(0, 0, 80, 0); 
+        npSetLED(1, 0, 80, 0);
+        npSetLED(2, 0, 80, 0);
+        npSetLED(3, 0, 80, 0);
+        npSetLED(4, 0, 80, 0);
+
+        // Segundo nivel - esverdeado
+        npSetLED(6, 80, 52, 0);
+        npSetLED(8, 80, 52, 0);
+        npSetLED(9, 80, 52, 0);
+        
+
+        // Terceiro nivel - amarelo
+        npSetLED(5, 80, 80, 0);
+        npSetLED(7, 80, 80, 0);
+        npSetLED(11, 80, 80, 0); //testando posicao
+        npSetLED(12, 80, 80, 0); //testando posicao
+
+        // Quarto nivel - vermelho
+        npSetLED(10, 80, 0, 0);
+        npSetLED(13, 80, 0, 0);
+        npSetLED(14, 80, 0, 0);
+        npSetLED(16, 80, 0, 0);
+        npSetLED(17, 80, 0, 0);
+        npSetLED(18, 80, 0, 0);
+        npSetLED(19, 80, 0, 0);
+        npSetLED(20, 80, 0, 0);
+        npSetLED(22, 80, 0, 0);
+        npSetLED(23, 80, 0, 0);
+        break;
+    }
+    // Atualiza a matriz.
+    npWrite();
+  ```
 - A lógica de exibição dos LEDs foi modificada para criar um efeito visual mais intuitivo e organizado.
 - Agora, os LEDs são acesos em "níveis", onde cada nível corresponde a uma intensidade sonora específica.
 - A matriz de LEDs foi dividida em seções, e cada seção é acesa conforme o volume do som aumenta.
@@ -79,14 +233,6 @@ Após carregar o código no Raspberry Pi Pico, o sistema começará a capturar a
 
 ---
 
-## Estrutura do Código
-
-- **`main.c`**: Contém a lógica principal do projeto, incluindo a configuração do ADC, DMA e NeoPixel, além do loop de leitura e exibição.
-- **`neopixel.c`**: Biblioteca para controle da matriz de LEDs NeoPixel.
-- **`pico/stdlib.h`**, **`hardware/adc.h`**, **`hardware/dma.h`**: Bibliotecas do SDK do Raspberry Pi Pico para manipulação de GPIO, ADC e DMA.
-
----
-
 ## Explicação das Funções Principais
 
 1. **`sample_mic()`**:
@@ -107,7 +253,7 @@ Após carregar o código no Raspberry Pi Pico, o sistema começará a capturar a
 
 ## Agradecimentos
 
-- Agradeço ao repositório [BitDogLab-C](link_para_o_repositório_original) por fornecer a base para este projeto.
+- Agradeço ao repositório [BitDogLab-C](https://github.com/BitDogLab/BitDogLab-C/tree/main/microphone_dma) por fornecer a base para este projeto.
 - Agradeço ao professor Antônio Santos por nos incentivar e dar suporte durante essa fase do EmbarcaTech.
 
 ---
